@@ -1,0 +1,16 @@
+manifest_version = 1
+[plugin]
+id = "example.gguf-model"
+version = "0.1.0"
+type = "model_load"
+[entry]
+path = "@PLUGIN_ENTRY@"
+symbol = "citlali_plugin_entry"
+abi = "citlali.native/v1"
+[strict_requirements]
+os = ["windows"]
+arch = ["x86_64"]
+[advice]
+notes = ["Native in-process libllama backend; pinned headers and DLLs must match; CPU-only; no GPU runtime"]
+[protocols]
+provides = ["citlali.model/gguf-vocab-v1", "citlali.compute/token-decode-v1", "example.gguf/chat-format-v1"]

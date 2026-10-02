@@ -1,0 +1,17 @@
+/build*/
+/out/
+/dist/
+__pycache__/
+*.py[cod]
+*.gguf
+*.safetensors
+*.dll
+*.exe
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.exp
+*.lock
+*.tmp

@@ -1,0 +1,7 @@
+# gguf-model 0.1.0
+
+Provides gguf-vocab-v1 and token-decode-v1 as defined in include/model.h, plus example.gguf/chat-format-v1. Native ABI v1 queries return immutable exact-ID descriptors. No upstream C/C++ objects cross these protocols. Config accepts only model (a GGUF path relative to the deployment or absolute); execution is forced CPU. Backend library set is retained for process lifetime; model/context/sampler allocations are released per instance. Use one backend source/build set per process.
+
+All output buffers are caller-owned; NULL/0 queries required capacity. Insufficient output returns UNSUPPORTED and required size without writes. chat-format produces one user message with assistant prefix using the embedded model template; missing/unsupported template returns UNSUPPORTED. No arbitrary Jinja execution. Token pieces can be partial UTF-8. Views are borrowed for the call; architecture strings until destroy. Public headers are packaged locally. Caller copies errors then invokes provider release before unload. Exceptions never cross ABI.
+
+One decoder per model; prepare takes context 128..32768, threads 1..256 and constructs KV/sampler. Decode accepts 1..512 tokens within prepared context; greedy requires last logits; reset clears KV and sampler. All model/decoder methods must be serialized, with no calls from sink callbacks. Release decoder before model destroy. Owned resources must be released by provider. Uses llama.cpp CPU C API and model vocabulary; inherits upstream model-format support, not all models are verified.

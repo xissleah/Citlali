@@ -1,0 +1,3 @@
+# Citlali v0.1: users install and select their own plugins.
+all_plugins = []
+used_plugins = []

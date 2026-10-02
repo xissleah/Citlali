@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-03",
+  "platform": "Windows x86_64 MinGW UCRT CPU baseline",
+  "same_binaries": true,
+  "only_model_path_changed": true,
+  "math_prompts": [
+    "What is two plus two? Give the numeric result. /no_think",
+    "What is one plus one? Give the numeric result. /no_think"
+  ],
+  "chinese_prompt": "请用中文用一句话描述春天。 /no_think",
+  "max_tokens": 256,
+  "context_size": 2048,
+  "threads": 4,
+  "limitations": "Verifies successful generation and protocol lifecycle, not instruction-following/accuracy for every response. No hard-coded architecture/template branch.",
+  "plugin_dlls_sha256": {
+    "cli-basic/bin/cli-basic.dll": "ee484037378179e571e081dc200aba99b1240ebec36cf50f4ddca120844e8a0f",
+    "cli-basic/bin/libwinpthread-1.dll": "2b3136c1d085fdb84e0b55c7a7e004672f35d576e4eff7fb2bef0b5899a781b7",
+    "gguf-model/bin/ggml-base.dll": "fa533895c937aae986d804ead8c6df387134cfe3b0c1df25fc5e6c5ceae81c0e",
+    "gguf-model/bin/ggml-cpu.dll": "b1f58102621fc878c531fa0bc4f657c6f8f859f5559c2713afc32cccd8e6c22d",
+    "gguf-model/bin/ggml.dll": "a931c2462937acb344765936e231e548a863e18e56486793afae3996502c08a8",
+    "gguf-model/bin/gguf-model.dll": "9e7b95e5f697c808421b378d04f88aa800b181137da6ad8518b1c309144bbf84",
+    "gguf-model/bin/libgcc_s_seh-1.dll": "c658c94c8d59c50e77a4b3b790d595daedc5422e87170dd2609bed3e733a4000",
+    "gguf-model/bin/libstdc++-6.dll": "5d882e4aa81b640c169ac08c81eaaff7474d03667ab4fa0db7d618fa64f43200",
+    "gguf-model/bin/libwinpthread-1.dll": "2b3136c1d085fdb84e0b55c7a7e004672f35d576e4eff7fb2bef0b5899a781b7",
+    "gguf-model/bin/llama.dll": "23573552f5b71d9aa383666fd400598e85b4c72dbbb4c4abc40ccb5d77ee93c5",
+    "gguf-runtime/bin/gguf-runtime.dll": "1440b9f7406fbd200382857e8290fa5ff2979313f762adba34603198a16f7a37",
+    "gguf-runtime/bin/libwinpthread-1.dll": "2b3136c1d085fdb84e0b55c7a7e004672f35d576e4eff7fb2bef0b5899a781b7",
+    "gguf-tokenizer/bin/gguf-tokenizer.dll": "6c69a83739ec9bc18a3db5706fdfb9a788224fee61d7e07d3fff9d15a2f4f454",
+    "gguf-tokenizer/bin/libwinpthread-1.dll": "2b3136c1d085fdb84e0b55c7a7e004672f35d576e4eff7fb2bef0b5899a781b7"
+  },
+  "models": [
+    {
+      "model": "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+      "architecture": "llama",
+      "math_response": "2 + 2 = 4\nOne",
+      "chinese_response": "春天是世界上最美丽的季节，气候温暖，天气清晰，花朵开花，野生动物繁殖，人們都能感受到美丽的气氛。",
+      "stats": [
+        "prompt_tokens=24 generated_tokens=47 prefill_s=3.26772 generation_s=7.688 tokens_per_s=6.11342"
+      ],
+      "passed": true
+    },
+    {
+      "model": "Qwen3-0.6B-Q4_K_M.gguf",
+      "architecture": "qwen3",
+      "math_response": "<think>\n\n</think>\n\nTwo plus two is **four**.\n<think>\n\n</think>\n\nOne plus one is **2**.",
+      "chinese_response": "<think>\n\n</think>\n\n春天是万物复苏的季节，万物生长，生机盎然。",
+      "stats": [
+        "prompt_tokens=20 generated_tokens=18 prefill_s=1.36598 generation_s=1.59582 tokens_per_s=11.2795"
+      ],
+      "passed": true
+    }
+  ],
+  "cli_behavior": "Enter starts generation; internally waits for completion; Ctrl+C exits with cleanup",
+  "ctrl_c_idle_and_generating_passed": true
+}

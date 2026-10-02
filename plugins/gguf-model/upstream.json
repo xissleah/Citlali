@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/ggml-org/llama.cpp",
+  "revision": null,
+  "note": "Local upstream snapshot has no .git metadata. Exact public header hashes are required; DLLs must be built from that same source.",
+  "headers_sha256": {
+    "include/llama.h": "7a7bb3211abaebb92f9d90b196818f30a2573327bfcfa1d235fbd50d227be1e6",
+    "ggml/include/ggml.h": "a036182d5c5d49f581bd9418432bb6bf492dd697495129597bc14b503b569303",
+    "ggml/include/ggml-backend.h": "3774c77515070f40f7dfb0aefdcb36f940537730e5891431dfeea338723923d5",
+    "ggml/include/ggml-cpu.h": "1aafe97e576ea38c0da57517fb2492955d0b69c1a799842481fc069d6d9d28ef",
+    "ggml/include/ggml-opt.h": "2919321813be96e0f5d6ba36e7ed634a518de0fbe834902ad8f5a402f906e302"
+  }
+}

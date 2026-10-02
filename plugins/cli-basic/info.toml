@@ -1,0 +1,18 @@
+manifest_version = 1
+[plugin]
+id = "example.cli-basic"
+version = "0.1.0"
+type = "cli"
+[entry]
+path = "@PLUGIN_ENTRY@"
+symbol = "citlali_plugin_entry"
+abi = "citlali.native/v1"
+[advice]
+notes = ["Text frontend; inference behavior depends on the explicitly bound runtime"]
+[protocols]
+provides = ["citlali.frontend/service-v1"]
+[[dependencies]]
+slot = "runtime"
+protocol = "citlali.inference/text-v1"
+cardinality = "one"
+optional = false

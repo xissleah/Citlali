@@ -1,0 +1,17 @@
+manifest_version = 1
+[plugin]
+id = "example.gguf-tokenizer"
+version = "0.1.0"
+type = "tokenizer"
+[entry]
+path = "@PLUGIN_ENTRY@"
+symbol = "citlali_plugin_entry"
+abi = "citlali.native/v1"
+[advice]
+notes = ["Model-provided single-turn chat template; vocabulary borrowed from explicitly bound GGUF model"]
+[protocols]
+provides = ["example.gguf/chat-tokenizer-v1"]
+[[dependencies]]
+slot = "model"
+protocol = "citlali.model/gguf-vocab-v1"
+cardinality = "one"

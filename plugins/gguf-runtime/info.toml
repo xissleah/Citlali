@@ -1,0 +1,21 @@
+manifest_version = 1
+[plugin]
+id = "example.gguf-runtime"
+version = "0.1.0"
+type = "runtime"
+[entry]
+path = "@PLUGIN_ENTRY@"
+symbol = "citlali_plugin_entry"
+abi = "citlali.native/v1"
+[advice]
+notes = ["CPU-only GGUF generation with external libllama computation; greedy sampling, single active request, no conversation history"]
+[protocols]
+provides = ["citlali.inference/text-v1"]
+[[dependencies]]
+slot = "model"
+protocol = "citlali.compute/token-decode-v1"
+cardinality = "one"
+[[dependencies]]
+slot = "tokenizer"
+protocol = "example.gguf/chat-tokenizer-v1"
+cardinality = "one"

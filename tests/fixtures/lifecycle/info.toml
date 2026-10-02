@@ -1,0 +1,13 @@
+manifest_version = 1
+[plugin]
+id = "test.lifecycle"
+version = "0.1.0"
+type = "test.fixture"
+[entry]
+path = "@PLUGIN_ENTRY@"
+symbol = "citlali_plugin_entry"
+abi = "citlali.native/v1"
+[advice]
+notes = ["Lifecycle fixture"]
+[protocols]
+provides = ["test.lifecycle/events-v1", "citlali.environment/probe-v1", "test.lifecycle/events-v2"]
