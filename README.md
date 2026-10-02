@@ -1,110 +1,110 @@
-# Citlali v0.1
+# Citlali
 
-Citlali 是 C++17 实现的本地推理插件框架。核心负责插件登记、清单检查、协议匹配、依赖装配和生命周期；模型读取、分词、算子、推理调度、CLI 交互及 HTTP 服务由用户安装的插件提供。
+**按模型、设备和使用场景，组合自己的本地推理引擎。**
 
-这是首个发布版本 **v0.1**，构建版本为 `0.1.0`。源码不附带个人开发用插件、模型权重、GPU 后端或测速实验。裸核心可以管理和检查插件清单，安装并配置 runtime 和 cli/server 插件之后才能执行推理。没有自动下载或插件市场。
+Citlali 是一个以插件为基础的本地推理框架，核心由 C++17 实现。模型加载、分词、算子、执行调度和应用接口由插件提供，用户通过部署清单选择、连接和配置所需组件。
 
-需要直接体验推理时，可使用可选的 [CPU 示例套件](#cpu-示例套件)：通过 llama.cpp C API 实现 GGUF 加载、模型聊天模板、文本生成和 CLI，已用 Llama 3.2 1B 和 Qwen3 0.6B 两种架构的 Q4_K_M 模型验证同一套二进制。示例包含 gguf-model、gguf-tokenizer、gguf-runtime 和 cli-basic，默认不编译，模型仍由用户提供；编译后的独立 CPU 包附带所需后端库，用户无需另装 llama.cpp。只提供 CPU 示例，不附带 GPU 实现。
+插件可以为特定模型和硬件做专门优化，也可以封装现有推理后端。模型架构、计算设备和性能策略由插件决定；核心负责插件检查、协议匹配、依赖装配和生命周期管理。
 
-## 从哪里启动
+## 自定义与扩展
 
-本仓库是**源码发行目录**，根目录没有 `citlali.exe`，`plugins/` 中附带的四个 CPU 插件也是源码，不能直接启动推理。编译后的宿主、插件动态库和运行配置放在构建输出目录。
-
-| 目录或文件 | 用途 |
+| 组件 | 可定制的内容 |
 |---|---|
-| 仓库根目录 `plugins/` | CPU 插件源码，以及自行安装的其他插件包 |
-| 仓库根目录 `list.citlali` | 空清单模板，不是已配置的推理清单 |
-| `build/dist/Release/` | 默认构建输出，只有核心，没有 CPU 推理插件 |
-| `build/example/dist/Release/` | 开启 CPU 示例后的运行目录，包含宿主和四个编译好的插件包 |
-| 运行目录中的 `list.citlali` | 用户实际登记、选择插件和配置模型的清单 |
+| `model_load` | 权重格式、加载方式、量化数据与模型资源 |
+| `tokenizer` | 分词、输入预处理、聊天模板 |
+| `kernels` | 算子实现、融合计算、特定设备优化 |
+| `runtime` | 模型执行、调度、缓存、采样和推理策略 |
+| `cli` / `server` | 终端交互、服务接口和请求处理 |
+| 自定义类型 | 使用 `vendor.name` 命名，扩展视觉编码器、调度组件等能力 |
 
-**第一次从源码体验推理：**
+**用协议连接插件。** 每个插件声明它提供和依赖的接口，部署清单显式指定绑定。标准类型统一命名；一次部署允许多个 `kernels`，其他标准类型各启用一个。自定义类型通过依赖契约组织。
 
-1. 按[构建 CPU 插件](#构建-cpu-插件)准备匹配的后端并编译；仅执行基础构建不会得到推理能力。
-2. 按[配置和运行](#配置和运行)，填写 `build/example/dist/Release/list.citlali`，设置自己的 GGUF 模型路径。
-3. 从仓库根目录进入运行目录并启动：
+**让优化留在插件内。** 插件作者可以选择支持的模型、设备和运行环境，自行实现专用算子、融合或图执行。依赖解析和接口查询可以在初始化阶段完成，计算阶段直接调用已绑定的函数表。实际性能取决于插件实现和组合方式。
 
-```powershell
-cd ./build/example/dist/Release
-.\citlali.exe check .\list.citlali --probe
-.\citlali.exe run .\list.citlali
-```
+**扩展模型架构和输入形式。** MoE 的专家路由与执行可以由 runtime 和计算插件实现；多模态插件可以定义图片、音频等数据接口，并由相应 frontend 调用。新的业务协议由插件包发布，消费者须实现对应协议。现有 `text-v1` 提供文本推理接口，多模态数据契约需由插件另行定义。
 
-看到 `> ` 后输入问题，按回车生成；回答结束后可以继续提问，Ctrl+C 退出。每次提问独立，不保留历史。
+**自由选择实现技术。** 原生插件通过 C ABI 接入，内部可使用 C++、CUDA 或其他工具。使用 Python、Triton 等技术时，插件作者需提供满足 ABI 的适配层及运行依赖。
 
-**已有预编译运行包：**解压完整包，在包含 `citlali.exe` 的目录配置 `list.citlali`，执行上面的最后两条命令即可。当前仓库不提供自动下载运行包的功能。
+## 构建核心
 
-清单以 `run` 指定的文件为准。源码目录和运行目录中的同名清单不会同步；命令不指定清单时默认使用当前工作目录的 `list.citlali`。运行时建议显式写出路径。
-
-## 构建
-
-需要 CMake >=3.20、C++17 编译器和线程库；Ninja 是下例使用的生成器。当前已验收 Windows x86_64 MinGW UCRT；其他平台的加载代码已实现，但尚未验收。
+需要 CMake ≥ 3.20、C++17 编译器和线程库。下面使用 Ninja，命令从仓库根目录执行：
 
 ```powershell
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
-& ./build/dist/Release/citlali.exe --version
-& ./build/dist/Release/citlali.exe check ./build/dist/Release/list.citlali
 ```
 
-编译器需在 PATH 内，或显式设置 CMAKE_C_COMPILER/CMAKE_CXX_COMPILER。基础构建离线，不需要 CUDA、llama.cpp 或模型。生产构建添加 `-DBUILD_TESTING=OFF`；启用测试时只有一个隔离的合成加载 fixture 写入 `build/testing`，不会进入 `dist` 或默认清单。Python 3 存在时会额外执行管理命令验收；宿主不依赖 Python。
+默认构建生成核心和空部署清单，输出位于 `build/dist/Release/`。编译器需在 PATH 中，或通过 `CMAKE_C_COMPILER` / `CMAKE_CXX_COMPILER` 指定。生产构建可添加 `-DBUILD_TESTING=OFF`；Python 3 用于部分测试，核心运行不依赖 Python。
 
-## 安装与使用插件
+本仓库分发源码，运行前需要编译。插件须匹配宿主平台及二进制接口；已验证的构建环境为 Windows x86_64 MinGW UCRT。
 
-把**编译好的插件包**解压到运行目录的 `plugins/<包名>/`。包内必须有 `info.toml`、`protocol.h`、`protocol.md`、清单指向的动态库及所需依赖。源码包应先按作者说明构建，不能直接用于推理。仓库根目录的 `plugins/` 与构建输出中的 `plugins/` 是独立目录，核心构建不会自动复制或编译用户插件。
+## 组合与运行
 
-**复制插件包不会自动更新清单。** 在包含 `citlali.exe` 的运行目录执行下列命令；以插件实际的 `id@version` 替换示例值：
+将编译好的插件包放入运行目录的 `plugins/<包名>/`，按插件文档登记、启用并配置。以下命令在包含 `citlali.exe` 的目录执行，插件 ID 替换为实际值：
 
 ```powershell
-.\citlali.exe inspect .\plugins\my-runtime
 .\citlali.exe scan .\plugins --deployment .\list.citlali
 .\citlali.exe list --deployment .\list.citlali
 .\citlali.exe enable vendor.my-runtime@0.1.0 --deployment .\list.citlali
 ```
 
-`scan` 将直接子目录中的包登记到 `all_plugins`，保留原库存和选择，不下载或自动启用插件。`enable` 只将插件加入 `used_plugins`，不会自动启用依赖或补全绑定和模型配置。按插件说明启用依赖，填写 `used_plugins.bindings` 和 `config`，配置 runtime 和 cli/server 后运行：
+`list.citlali` 包含两部分：
+
+- `all_plugins`：此部署登记的插件及其路径。
+- `used_plugins`：启用的插件、依赖绑定和配置。
+
+复制包后执行 `scan` 才会更新库存；`enable` 只加入选择。按插件说明配置依赖和参数，启用一个 runtime 及 cli/server，然后启动：
 
 ```powershell
-.\citlali.exe check .\list.citlali
 .\citlali.exe check .\list.citlali --probe
 .\citlali.exe run .\list.citlali
 ```
 
-CPU 示例可直接使用下文的完整清单，已包含四个插件的登记、选择和绑定，无需逐个执行 `scan`/`enable`。也可将包安装到其他目录，扫描对应目录并显式指定要更新的清单。
+插件路径相对于清单所在目录。源码目录与运行目录中的清单独立，运行时使用命令指定的文件。包信息可通过 `inspect <包路径>` 查看，选择可通过 `disable <id@version>` 移除。
 
-静态 `check` 不加载代码；`--probe` 加载并查询接口/环境，但不创建实例。`run` 完成检查和实例装配，启动 frontend。已知不满足 strict_requirements 时报错；无法判断默认警告后继续，`--strict-env` 将 UNKNOWN 视为错误。advice 只产生提示。默认空清单检查成功，直接 run 会说明缺少 runtime。
+静态 `check` 检查清单，`--probe` 进一步加载和查询接口及环境。已知不满足 `strict_requirements` 时阻止启动；无法判定时默认警告继续，`--strict-env` 可将其视为错误。`advice` 提供建议。
 
-## CPU 示例套件
+## 开发插件
 
-四个可独立安装的原生插件：gguf-model（GGUF 及 CPU 解码）、gguf-tokenizer（模型内聊天模板）、gguf-runtime（异步文本推理）、cli-basic（终端交互）。四个源码包直接位于 plugins/<包名>/，各自携带协议头、文档和许可证；构建和部署说明集中在本 README，测试位于 tests/gguf-cpu。源码是 Citlali 原有适配代码的整理，默认不参与核心构建。仅支持 Windows x86_64 MinGW UCRT 包装；产品版本 0.1.0，native ABI v1。
+插件包携带以下内容：
 
-计算/量化/模型架构支持来自 [llama.cpp](https://github.com/ggml-org/llama.cpp) C API，不启动外部 CLI。示例不含模型、上游完整源码或 GPU 运行库。分词使用 GGUF chat template 和 llama_chat_apply_template 内置模板支持；不是完整 Jinja 引擎，缺少或不支持模板会报错。插件不检查模型家族，也不写死某一家族的聊天格式。用户模型许可证独立于本项目。
+| 文件 | 职责 |
+|---|---|
+| `info.toml` | 身份、类型、入口、协议、依赖与环境条件 |
+| `protocol.h` | 可编译的接口定义及必要头文件 |
+| `protocol.md` | 数据格式、调用语义、所有权和并发约定 |
+| 动态库及依赖 | 原生入口、实现和运行所需资源 |
 
-### 构建 CPU 插件
+实现 `citlali.native/v1` 入口及实例的创建、销毁方法，声明提供的版本化协议，并通过宿主接口获取显式绑定的依赖。共享函数表与资源需遵守 ABI 的所有权和生命周期约定。自定义算子须由 runtime 消费相应协议并绑定到执行位置。
 
-以下命令同时构建宿主和四个 CPU 插件；仅基础构建或仅登记源码包不能执行推理。
+接口与格式详见 [SDK](sdk/README.md)、[插件包与部署清单](docs/packages.md)、[宿主协议](sdk/protocols.md)。插件在宿主进程内执行，应加载可信代码，并在分发时携带必要依赖、协议和许可证。
 
-需要匹配的 llama.cpp 源码、CMake、Ninja、MinGW UCRT（包括 GCC runtime 的 share/licenses/gcc-libs）、Python 3。上游本地快照没有 Git 元数据，不能伪称固定提交；plugins/gguf-model/upstream.json 记录实际使用的公开头 SHA256，脚本拒绝不匹配的头。更换上游版本需同步核验并更新这些记录；头匹配不保证任何来源 DLL 都兼容，必须由同一源码构建。
+## 示例：GGUF 文本推理
 
-从 Citlali 仓库根目录执行，路径替换为本机位置：
+仓库提供一组可选的 CPU 插件，展示从模型加载到终端生成的完整组合：`gguf-model`、`gguf-tokenizer`、`gguf-runtime` 和 `cli-basic`。计算后端使用 [llama.cpp](https://github.com/ggml-org/llama.cpp) C API，默认构建不开启此套件。
+
+该示例支持后端可处理的 GGUF 模型与内置聊天模板，采用 greedy 采样、单活动请求和独立提问。需要用户提供模型；示例构建环境为 Windows x86_64 MinGW UCRT。
+
+<details>
+<summary>构建示例插件</summary>
+
+准备 CMake、Ninja、Python 3、MinGW UCRT（含 `share/licenses/gcc-libs`）以及与 [upstream.json](plugins/gguf-model/upstream.json) 头文件哈希匹配的 llama.cpp 源码。从仓库根目录执行，替换本机路径：
 
 ```powershell
 python plugins/gguf-model/tools/build_backend.py --source C:/deps/llama.cpp --output build/llama-cpu-backend --toolchain C:/msys64/ucrt64/bin
 cmake -S . -B build/example -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=C:/msys64/ucrt64/bin/gcc.exe -DCMAKE_CXX_COMPILER=C:/msys64/ucrt64/bin/g++.exe -DCITLALI_BUILD_CPU_EXAMPLE=ON -DCITLALI_LLAMA_SOURCE=C:/deps/llama.cpp -DCITLALI_LLAMA_CPU_BUILD=C:/path/to/Citlali/build/llama-cpu-backend
 cmake --build build/example --config Release
-ctest --test-dir build/example -C Release --output-on-failure
 ```
 
-后端仅编译 CPU、关闭本机探测和可选 x86 ISA，基础包兼容性优先，速度不代表该 CPU 的优化上限。没有 CUDA/Vulkan/Metal、上游 CLI/server/common 库或所有 CPU 变体。CMake 检查后端生成记录及 DLL SHA256，不接受原 GPU 后端冒充 CPU 包。模型设置强制 CPU，禁止 gpu_layers 配置。
+宿主和四个插件包生成到 `build/example/dist/Release/`。后端脚本采用基础 CPU 指令集配置；CMake 校验构建记录和 DLL 哈希，并复制必要库。使用完整预编译运行包时无需另装 llama.cpp。
 
-构建结果位于 `build/example/dist/Release/`，四个插件包位于其 `plugins/` 子目录。CMake 已将所需后端和运行库复制到包内。分发时复制整个运行目录并保留全部许可证，可自行压缩为 ZIP；本项目目前不提供通用插件一键打包工具。分发自有插件前应自行确认动态库入口、依赖、协议文件、环境要求及许可证完整，并在干净环境验收。
+</details>
 
-### 配置和运行
+<details>
+<summary>配置模型并启动 CLI</summary>
 
-取得编译好的 Citlali CPU 运行包即可使用，**无需另外安装 llama.cpp 源码、CLI 或 CUDA**。模型本身由用户提供。
-
-构建生成的 `list.citlali` 默认为空，不自动启用插件，也不再生成单独的示例部署文件。将下面内容替换到 `build/example/dist/Release/list.citlali`（预编译包则是 `citlali.exe` 旁的同名文件），把 `model` 改为自己的 GGUF 路径。不要保留原有 `all_plugins = []` 和 `used_plugins = []` 两行。插件路径相对于清单所在目录；Windows 路径推荐使用 `/`。
+将下面内容写入 `build/example/dist/Release/my-model.citlali`，把 `model` 改为本机 GGUF 路径。这份清单包含四个插件的登记与绑定，可以直接使用。
 
 ```toml
 [[all_plugins]]
@@ -147,65 +147,34 @@ runtime = ["example.gguf-runtime@0.1.0"]
 max_tokens = 256
 ```
 
-从源码项目根目录执行：
+从仓库根目录执行：
 
 ```powershell
-& ./build/example/dist/Release/citlali.exe check ./build/example/dist/Release/list.citlali --probe
-& ./build/example/dist/Release/citlali.exe run ./build/example/dist/Release/list.citlali
+cd ./build/example/dist/Release
+.\citlali.exe check .\my-model.citlali --probe
+.\citlali.exe run .\my-model.citlali
 ```
 
-使用预编译运行包时，在运行目录执行 `./citlali.exe run ./list.citlali`。切换模型只需修改 `model`；无需重新构建或更换插件。`CITLALI_EXAMPLE_MODEL` 仅提供可选的验收模型路径，不设置用户运行清单。重新运行 CMake 配置可能把构建输出中的 `list.citlali` 重新生成为源码模板；已配置的清单请提前备份，或另存为 `my-model.citlali` 并用 `run ./my-model.citlali` 启动。
+出现 `> ` 后输入问题，按回车流式生成；回答完成后继续提问，Ctrl+C 退出。每次提问独立，可用 `:plan` 查看配置、`:quit` 退出。线程、上下文和输出上限在清单中配置。
 
-CLI 输入问题并按回车即开始流式生成；回答完成后再次出现 `> ` 提示，可继续提问。按 Ctrl+C 退出，程序会停止当前生成并清理资源；也可用 `:quit` 退出、`:plan` 查看配置。不需要输入等待或取消命令。初版 greedy 采样、单活动请求、每次 prompt 替换历史，context 默认 2048、threads 默认 4、max_tokens 默认 256。模型模板可能启用其思考格式，本套件不提供通用关闭思考开关。CPU 模型内存/速度受设备影响，轻薄本建议先用小型量化 GGUF。
+`prompt_tokens` 包含用户输入及聊天模板标记。Qwen3 可在问题末尾添加 `/no_think` 请求直接回答，该指令由模型理解。
 
-### 输出信息与 Qwen3 思考模式
+也可编辑运行目录的 `list.citlali`，但重新配置 CMake 时它可能恢复为空模板；独立命名的清单便于保留本机配置。分发时保留完整运行目录和所有许可证，模型按其许可单独提供。
 
-`prompt_tokens` 统计实际送入模型的完整输入，包括用户文字、聊天模板的角色/结束标记和换行。一个词不一定对应一个 token；短输入显示多个 token 属于正常情况，与保留对话历史无关。`generated_tokens` 表示本次生成的 token 数量。
+</details>
 
-`/no_think` 是 Qwen3 支持的文本软指令，请求直接回答、不展开思考。可以在问题末尾添加，例如 `你好，请介绍你自己。 /no_think`；普通提问无需添加。它不是 Citlali 命令，其他模型未必支持。插件使用模型自带的聊天模板，不自动附加这条指令。
+## 项目结构
 
-### 示例许可
-
-Citlali 适配代码：MIT，各插件目录自带 LICENSE。llama.cpp/GGML：MIT，各插件目录自带 llama.cpp-LICENSE，后端未修改。toml++ 与 winpthread 原许可随编译包保留。MinGW libstdc++/libgcc 动态运行库适用 GCC 许可及 Runtime Library Exception，编译后包中的原始说明在 gguf-model/runtime-licenses/gcc-libs；它们不改标为 MIT。不得删除这些版权/许可文件。
-
-### 通用性与验收
-
-插件名称描述 GGUF 能力，与 Llama 模型家族无关；llama.cpp 是内部计算后端，后端符号、依赖配置和许可仍使用其真实名称。同一套 gguf-model、gguf-tokenizer、gguf-runtime、cli-basic 二进制用于不同架构；模型路径和 GGUF 自带的元数据决定架构、词表、聊天模板及停止 token，不需要更换专用插件或重新编译。
-
-2026-10-03，Windows x86_64 CPU 实际验收以下两种模型：
-
-| 模型 | GGUF 架构 | 验收 |
-|---|---|---|
-| Llama-3.2-1B-Instruct-Q4_K_M.gguf | llama | 数字/英文输出、中文 UTF-8、两次独立请求、Ctrl+C 退出及清理 |
-| Qwen3-0.6B-Q4_K_M.gguf | qwen3 | 同样流程，使用同一套插件 DLL |
-
-测试仅替换 model 路径；提示词、线程、上下文、token 上限、绑定和插件二进制保持一致。`/no_think` 是 Qwen3 支持的软指令，用于请求关闭思考、直接回答；它是提示词文本，不是 Citlali 命令，也不是通用模型开关。普通提问无需添加，其他模型可能忽略或误解。验收为了保持提示一致给两种模型都附加该文本，让 Qwen3 更容易在有限 token 预算内给出答案；插件不检测或追加此指令，也不改写模型的默认思考模式。不带该指令的 Qwen3 也已成功生成，但默认思考过程可能耗尽 token 预算。生成测试验证接口/生命周期和有效输出，不保证模型遵循每条指令或每次计算正确。
-
-英文问答与中文输出有效，空闲及生成中的 Ctrl+C 退出、上下文超限、GPU 配置拒绝、无效配置回滚及逆序销毁通过。执行时 PATH 仅保留 Windows/System32；两组验收记录中的全部 DLL SHA256 完全一致。配置上述两个模型时，完整 CTest 包含 4 项核心测试与 2 项模型测试，6/6 通过；未提供测试模型时只执行核心测试。验收摘要见 tests/gguf-cpu/validated-models.json。
-
-配置多模型验收时可传入分号分隔的路径；也可用 `-DCITLALI_EXAMPLE_MODEL=C:/models/model.gguf` 只验收一个模型。模型路径不写入发行清单，测试从本 README 的配置创建临时清单：
-
-```powershell
-cmake -S . -B build/example "-DCITLALI_EXAMPLE_TEST_MODELS=C:/models/Llama-3.2-1B-Instruct-Q4_K_M.gguf;C:/models/Qwen3-0.6B-Q4_K_M.gguf"
-ctest --test-dir build/example -C Release --output-on-failure
-```
-
-通用范围是所选后端支持的 GGUF 架构和内置聊天模板，不能解释为所有模型格式/架构都支持。Gemma/Qwen3.5 HF 权重尚未转换和验收。基础 CPU 构建兼容性优先，性能不代表 CPU 优化上限。已生成的独立运行包包含必要库和完整许可证，模型由用户提供。
-
-## 结构与协议
-
-| 路径 | 用途 |
+| 路径 | 内容 |
 |---|---|
-| src | C++ 宿主与命令入口 |
-| plugins | 用户安装的插件包目录，包含 CPU 示例源码和用户插件包 |
-| sdk | 基础 ABI、宿主直接消费的协议头、可选 C++ 辅助 |
-| tests | 核心 ABI、加载生命周期和管理验收 |
-| third_party | TOML 解析依赖与许可证 |
-| docs | 清单格式、发布范围及接口说明 |
-| list.citlali | 空插件清单模板 |
+| `src/` | 核心与命令入口 |
+| `sdk/` | 基础 ABI、宿主协议和开发辅助 |
+| `plugins/` | 插件源码包 |
+| `docs/` | 格式和接口说明 |
+| `tests/` | ABI、生命周期及功能测试 |
+| `third_party/` | 核心依赖与许可 |
+| `list.citlali` | 空部署清单模板 |
 
-产品版本与 ABI/功能协议版本独立。首版 v0.1 使用 `citlali.native/v1`（握手数字 1），采用包含协议 ID、版本和函数表的接口描述符。第三方协议通过精确 ID 和 `-vN` 匹配，不自动降级。宿主直接调用的 frontend/text/probe 协议在 SDK 内维护，其余业务协议由发布插件自带。
+## 许可证
 
-接口见 [SDK](sdk/README.md)、[包和清单格式](docs/packages.md)、[宿主协议](sdk/protocols.md)。原生插件拥有进程权限，应只加载可信代码。没有崩溃隔离、热卸载或通用 Python/Triton 桥接；具体推理能力和性能取决于安装的插件。
-
-发布范围见 [发布说明](docs/source-release.md)，第三方许可见 [第三方说明](third_party/THIRD_PARTY.md)。项目自有代码采用 [MIT License](LICENSE)，版权署名为 `2026 Citlali contributors`。第三方代码及独立安装的插件遵循各自许可证。
+Citlali 自有代码采用 [MIT License](LICENSE)。插件和后端依赖遵循各自许可证；GGUF 示例保留 llama.cpp 的 MIT 声明及所分发运行库的原始许可。详见[第三方说明](third_party/THIRD_PARTY.md)。
